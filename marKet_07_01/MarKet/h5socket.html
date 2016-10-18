@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+	<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+	</head>
+	<script type="text/javascript" src="jquery.js" ></script>
+	<script type="text/javascript" src="websoket2.js" ></script>
+	<style>
+		*{ font-size: 12px; margin: 0; padding: 0; outline: none;}
+		.time{ margin: 8px auto; text-align: center;}
+		.left .info{ margin-left: 40px; margin-right: 40px;}
+		.left .nickname{margin-left: 10px;}
+		.left .headimg{ width: 40px; height: 40px; border-radius:20px; float: left;}
+        .left .message{ display: block; line-height: 20px; padding: 5px; border-radius: 5px; background-color: #eee; margin:5px 10px}
+		.left .type{ margin-left: 10px;}
+        .right{ text-align: right;color: darkblue;}
+		.right .info{ margin-left: 40px; margin-right: 40px;}
+		.right .nickname{margin-right: 10px;}
+		.right .type{ margin-right:10px;}
+		.right .headimg{ width: 40px; height: 40px; border-radius:20px; float: right;}
+        .right .message{ display: block; line-height: 20px; padding: 5px; margin:5px 10px;background: #eee; border-radius:5px; }
+		.right .message .auto{  border-radius:5px; padding: 5px;}
+		.content{ position: absolute; width: 96%; padding: 0 2%; padding-bottom: 50px; }
+		.footer{ height: 30px; overflow: hidden; position: fixed; bottom: 0; width: 100%; border-top:1px solid #eeeeee; padding: 5px 5px 1px; background-color: #eee;}
+		.footer .inputarea .inputtext{ min-height: 15px; width: 95%; margin: 0 auto; border-radius:2px ; outline: none; border: 1px solid #ccc; line-height: 15px; vertical-align: middle; padding: 5px; }
+        .footer .submit{ height: 28px; width: 95%;  text-align: center; line-height: 25px;  background:#C08C27; color: #fff; border:1px solid #ccc ; border-radius:5px ;-webkit-appearance:none;}
+		.block{ display: block;}
+		.join { text-align: center; margin: 5px 0;}
+		.footer div{text-align: center; float: left;}
+		.footer div:last-child{ width: 13%;}
+		.footer div.inputarea{ width: 84%;}
+	</style>
+	<body>
+
+	<div class="content">
+	</div>
+	<div class="footer">
+		<div class="inputarea"><textarea  class="inputtext" rows="1"></textarea></div>
+		<div><input type="button" class="submit" value="发送" /></div>
+	</div>
+	<script>
+		function getuser(username,pwd){
+				var Socket1 = $.websocket({
+			    domain:"zhibo.xiduoil.com",   //这是与服务器的域名或IP
+			    port:80,                  //这是服务器端口号
+			    protocol:"chat",            //这东西可有可无,组合起来就是 ws://www.qhnovel.com:8080/XDSYCHAT/test
+			    onOpen:function(event){			       
+			        flag=true;
+			        //console.log("已经与服务端握手,onOpen可省略不写");
+			    },
+			    onError:function(event){
+			        alert("发生了错误,确认后刷新页面");
+			        location.reload();
+			    },
+			    onSend:function(msg){
+			        if(!flag){
+			           //console.log("发送失败");
+			        }
+			       // console.log(msg);
+			    },
+			    onMessage:function(result,nTime){
+			        var d = eval("("+result+")");
+			        var type = d.type;
+			        // zb.getWebsoket(type,d);			   
+			      	var viparray = ["游客","普通会员","VIP","名师","客户经理","管理员","钻石VIP","至尊VIP"]; 
+			      	var messinfo = '';
+			        if(d.message){			      
+                        if(myid ==d.id){
+				      		messinfo = '<p class="time">'+d.date+'</p><div class="right"><img src="http://zhibo.xiduoil.com/images/32/'+d.faceImg+'" class="headimg"><div class="info"><span class="nickname">'+d.nickName+'</span><span class="type">['+viparray[d.type_id]+']</span><div class="message">'+d.message+'</div></div></div>'    		
+			      		}else{
+				      		messinfo = '<p class="time">'+d.date+'</p><div class="left"><img src="http://zhibo.xiduoil.com/images/32/'+d.faceImg+'" class="headimg"><div class="info"><span class="nickname">'+d.nickName+'</span><span class="type">['+viparray[d.type_id]+']</span><div class="message">'+d.message+'</div></div></div>'	
+			      		}			        			        	
+			        }else if(d.nickName){
+                        var nickName = localStorage.getItem("nickName")||"";
+                        if(nickName != d.nickName || myid == d.id){
+                            messinfo = '<div class="join"><span>'+d.nickName+' 加入直播间</span></div>'
+                        }
+                        localStorage.setItem("nickName",d.nickName);
+			        }
+			        $('.content').append(messinfo);	
+			        var height = $('.content').height()+100;	        
+			        $("body").scrollTop(height);      
+			       // console.log("从服务端收到的数据:" + result);
+			        //alert("最近一次发送数据到现在接收一共使用时间:" + nTime);
+			    }
+			});
+				$.ajax({
+					type:"get",
+					url:"http://175.102.13.51:8080/XDSY/HTUser?type=login&username="+username+"&pwd="+pwd+"",
+					dataType:'JSONP',
+					jsonpCallback:"jsonp",				
+					success:function(e){
+						//console.log(e);
+						myid = e.id;
+						statue = Socket1.send('{"type":"init","from":"", "to":"all" , "id":"'+e.id+'" , "pwd":"'+e.pwd+'" }');
+						if(!statue){
+							var loop = setInterval(function(){
+								var nstatue = Socket1.send('{"type":"init","from":"", "to":"all" , "id":"'+e.id+'" , "pwd":"'+e.pwd+'" }');
+								if(nstatue){
+									 clearInterval(loop);							
+								};
+							},5000)
+						}
+					},
+					error:function(e,d,x){
+						//console.log(e)
+					}
+				})
+				$(".submit").click(function(){
+					if($('.inputtext').val()){					
+						Socket1.send('{"type":"send","userid":"'+myid+'","from":"", "to":"all" , "message":"'+$(".inputtext").val()+'"}');
+						$(".inputtext").val("");
+					};
+				});
+        }
+		</script>
+	</body>
+</html>
